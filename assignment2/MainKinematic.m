@@ -5,6 +5,10 @@ clc
 time_final = 20; %Final time
 
 %%%%%% MODIFY. Initial state values and parameter values
+d = [0, 1, 0]'; % direction
+w = pi / time_final / 2 * 1.01; % rad/s
+parameters.w_abb = d / norm(d) * w; % Fixed w
+state = zeros(3, 1);
 
 
 % Simulate dynamics
@@ -42,11 +46,9 @@ while time_display < time(end)
 
     %%%%%% MODIFY THE FOLLOWING LINES TO PRODUCE AN "omega" AND "R" FROM YOUR SIMULATION STATE
 
-    omega = [0;0;4];  % Some random Omega
+    omega = parameters.w_abb;  % Some random Omega
 
-    R     = [   -0.8603    0.4343   -0.2670
-                -0.4771   -0.8705    0.1213
-                -0.1797    0.2317    0.9560]; % Some random rotation matrix
+    R     = Rotations(state_animate'); % Some random rotation matrix
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

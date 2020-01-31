@@ -6,4 +6,7 @@ function [ state_dot ] = Kinematics( t, state, parameters )
     % - use the "reshape" function to turn a matrix into a vector or vice-versa.
 
     % Code your equations here...
+    [~, M] = Rotations(state);
+    state_dot = M \ parameters.w_abb;  
+    
 end

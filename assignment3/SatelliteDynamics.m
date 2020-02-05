@@ -11,9 +11,12 @@ function [ state_dot ] = SatelliteDynamics( t, x, parameters )
     %                  orientation; 4:7
     %                  velocity; 8:10
     %                  angular velocity]; 11:13
-    p_dot = x(8:10);
+    
+    R = quat2rot(x(4:7));
+    
+    p_dot = R*x(8:10);
     q_dot = 0.5 * quatProd(x(4:7), x(11:13));
-    v_dot = -parameters.K / norm(x(1:3))^2 * (x(1:3) / norm(x(1:3)));
+    v_dot = R*(-(parameters.K / norm(x(1:3))^2) * (x(1:3) / norm(x(1:3))));
     w_dot = zeros(3, 1);
     
     state_dot = [p_dot;

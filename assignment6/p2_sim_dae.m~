@@ -1,0 +1,39 @@
+syms x1(t) x2(t) z1(t) z2(t) a
+
+xd1 = diff(x1);
+xd2 = diff(x2);
+
+x = [x1; x2];
+xd = [x1d; x2d];
+z = [z1; z2];
+vars = [x; z];
+
+M = [1, 1;
+     0, 1];
+
+A = [x1^2,   x2;
+        0, x2^2];
+A = A + a*eye(2);
+ 
+eq1 = diff(x) == -M*x - z;
+eq2 = 0 == 1/10 * x - A*z;
+eqns = [eq1; eq2];
+
+[eqns,vars] = reduceDifferentialOrder(eqns,vars);
+
+if ~isLowIndexDAE(eqns, vars)
+    [DAEs,DAEvars] = reduceDAEIndex(eqns,vars);
+    [DAEs,DAEvars] = reduceRedundancies(DAEs,DAEvars);
+else
+    DAEs = eqns;
+    DAEvars = vars;
+end
+
+[M,f] = massMatrixForm(DAEs,DAEvars);
+    
+pDAEs = symvar(DAEs);
+pDAEvars = symvar(DAEvars);
+extraParams = num2cell(setdiff(pDAEs, pDAEvars));
+M = odeFunction(M, DAEvars);
+f = odeFunction(f, DAEvars, extraParams{:});
+

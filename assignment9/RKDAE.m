@@ -10,6 +10,8 @@ function [x,xdot,z] = RKDAE(ButcherArray, F, dFdxdot, dFdx, dFdz, T, x0, z0_est)
     % z0_est: Estimate of algebraic variables at initial time
     % x: RK iterations for x, Nx x Nt
     % xdot, z: xdot and z values for x and T, Nx x Nt
+    
+    % Definitions and allocations 
     Nt = length(T);
     Nx = length(x0);
     Nz = length(z0_est);
@@ -20,8 +22,15 @@ function [x,xdot,z] = RKDAE(ButcherArray, F, dFdxdot, dFdx, dFdz, T, x0, z0_est)
     A = ButcherArray.A;
     b = ButcherArray.b(:);
     c = ButcherArray.c(:);
-    Nstage = size(A,1);    
-    [xdot0,z0] = SolveForXdotAndZGivenX(x0,T(1),F,dFdxdot,dFdz,zeros(Nx,1),z0_est);    
+    Nstage = size(A,1);
+    % Make sure that the vector function handles can act on 
+    % concatenations of vectors
+    FVec = @(xdot,x,z,t) ExpandFunction2Concatenations(F,xdot,x,z,t);
+    dFdxdotVec = @(xdot,x,z,t) ExpandFunction2Concatenations(dFdxdot,xdot,x,z,t);
+    dFdxVec = @(xdot,x,z,t) ExpandFunction2Concatenations(dFdx,xdot,x,z,t);
+    dFdzVec = @(xdot,x,z,t) ExpandFunction2Concatenations(dFdz,xdot,x,z,t);
+    % Start integration
+    [xdot0,z0] = SolveForXdotAndZGivenX(x0,T(1),FVec,dFdxdotVec,dFdzVec,zeros(Nx,1),z0_est);    
     x(:,1) = x0;
     xdot(:,1) = xdot0;
     z(:,1) = z0;
@@ -29,16 +38,17 @@ function [x,xdot,z] = RKDAE(ButcherArray, F, dFdxdot, dFdx, dFdz, T, x0, z0_est)
     xdott = xdot0;
     zt = z0;
     w = [repmat(xdott,Nstage,1); repmat(zt,Nstage,1)]; % initial guess
+    % Integrate
     for nt=2:Nt
         t = T(nt-1);
         dt = dT(nt-1);
-        G = @(w) RKDAEResidual(w,xt,t,dt,A,c,F);
-        JG = @(w) RKDAEJacobianResidual(w,xt,t,dt,A,c,dFdxdot,dFdx,dFdz);
+        G = @(w) RKDAEResidual(w,xt,t,dt,A,c,FVec);
+        JG = @(w) RKDAEJacobianResidual(w,xt,t,dt,A,c,dFdxdotVec,dFdxVec,dFdzVec);
         w = NewtonsMethod(G,JG,w);
         K = reshape(w(1:Nx*Nstage),Nx,Nstage);
         xt = xt + dt*(K*b);
         x(:,nt) = xt;
-        [xdott,zt] = SolveForXdotAndZGivenX(xt,t+dt,F,dFdxdot,dFdz,xdott,zt);
+        [xdott,zt] = SolveForXdotAndZGivenX(xt,t+dt,FVec,dFdxdotVec,dFdzVec,xdott,zt);
         xdot(:,nt) = xdott;
         z(:,nt) = zt;
     end
@@ -84,4 +94,15 @@ function G = RKDAEJacobianResidual(w,xt,t,dt,A,c,dFdxdot,dFdx,dFdz)
     G = [repmat(dFdxdotG,1,Nstage).*kron(eye(Nstage),ones(Nz+Nx,Nx)) ...
          + repmat(dFdxG,1,Nstage).*kron(dt*A,ones(Nz+Nx,Nx)) ...
          repmat(dFdzG,1,Nstage).*kron(eye(Nstage),ones(Nx+Nz,Nz))];
+end
+function fVec = ExpandFunction2Concatenations(f,xdot,x,z,t)
+    % Returns the concatenation [f(xdot(:,i),x(:,i),z(:,i),t(i)): i=1...N]
+    % f, function handle that returns column vector
+    % xdot, matrix [] x N
+    % x, matrix [] x N
+    % z, matrix [] x N
+    % t, matrix 1 x N
+    N = size(t,2);
+    fVec = cell2mat(arrayfun(@(i) f(xdot(:,i),x(:,i),z(:,i),t(i))',...
+        1:N,'UniformOutput',false))';
 end

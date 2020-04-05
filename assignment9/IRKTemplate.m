@@ -14,9 +14,19 @@ function x = IRKTemplate(ButcherArray, f, dfdx, T, x0)
     %
     %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    xt = x0; % initial iteration
-    k = ???; % initial guess
+    tol=10^(-3);
+    A=ButcherArray.A;
+    b=ButcherArray.b;
+    c=ButcherArray.c;
+    x=zeros(length(x0),length(T));
+    x(:,1) = x0; % initial iteration
+    k = zeros(length(x0),length(A)); % initial guess
     % Loop over time points
+    %r=IRKODEResidual(k(1,:),xt(:,1),1,del_t,A,c,f);
+    r=1000;
+    N=1000;
+    Nt=length(T);
+    alpha=1;
     for nt=2:Nt
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % Update variables
@@ -28,6 +38,20 @@ function x = IRKTemplate(ButcherArray, f, dfdx, T, x0)
         %
         %
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        del_t = T(nt) - T(nt - 1);
+        K = x(:,nt)*ones(length(x), length(A));
+        k_reshape=reshape(k,[length(x0)*length(A),1]);
+        r=IRKODEResidual(k_reshape,x(:,nt-1),nt,del_t,A,c,f);
+        while norm(r)>tol
+            r=IRKODEResidual(k,x(:,nt-1),nt,del_t,A,c,f);
+            J_r=IRKODEJacobianResidual(k,x(:,nt-1),nt,del_t,A,c,dfdx);
+            d=@(del_k) J_r*del_k+r;
+            J=@(del_k) J_r;
+            del_k=NewtonsMethod(d,J,k',tol,N);
+            k=k+alpha*del_k';
+            k_reshape=reshape(k,[length(x0)*length(A),1]);
+        end
+        x(:,nt)=x(:,nt-1)+(del_t*b*k');
     end
 end
 function g = IRKODEResidual(k,xt,t,dt,A,c,f)

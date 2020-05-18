@@ -1,0 +1,56 @@
+f = fopen("latex.txt", "w");
+if f == -1
+    error("Failed to open file!")
+end
+
+symbols = {
+    Lag_q,
+    Lag_qdq,
+    Lag_dq,
+    Lag_dqdq
+};
+
+symbols_names = [
+    "\frac{\partial\mathcal{L}}{q",
+    "Lag_qdq",
+    "Lag_dq",
+    "Lag_dqdq"
+];
+
+diff_vars = {    
+    dx,
+    dtheta1,
+    dtheta2
+};
+
+string_reps = ["\dot{x}", "\dot{\theta}_1", "\dot{\theta}_2"];
+
+fprintf(f, "\\begin{align*}\n");
+
+for i = length(symbols)
+    
+    symbol = symbols{i};
+    symbol_name = symbols_names(i);
+
+    expr = parse_string(latex(symbol), diff_vars, string_reps);
+    fprintf(f, symbol_name + "&=" + expr + "\\\\" + "\n");
+    
+end
+
+fprintf(f, "\\end{align*}");
+
+fclose(f);
+
+function parsed_str = parse_string(str, symbols, string_reps)
+
+    parsed_str = str;
+
+    for i = 1:length(symbols)
+       
+        parsed_str = strrep(parsed_str, string(symbols(i)), string_reps(i));
+        
+    end
+    
+    parsed_str = strrep(parsed_str, '\', '\\');
+
+end
